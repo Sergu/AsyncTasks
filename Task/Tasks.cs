@@ -3,6 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net;
+using System.IO;
+using System.Security.Cryptography;
+using System.Threading;
 
 namespace Task
 {
@@ -17,8 +22,11 @@ namespace Task
         /// <returns>The sequence of downloaded url content</returns>
         public static IEnumerable<string> GetUrlContent(this IEnumerable<Uri> uris)
         {
-            // TODO : Implement GetUrlContent
-            throw new NotImplementedException();
+            using (var client = new HttpClient())
+            {
+                foreach (var uri in uris)
+                    yield return client.GetStringAsync(uri).Result;
+            }
         }
 
         /// <summary>
@@ -33,8 +41,21 @@ namespace Task
         /// <returns>The sequence of downloaded url content</returns>
         public static IEnumerable<string> GetUrlContentAsync(this IEnumerable<Uri> uris, int maxConcurrentStreams)
         {
-            // TODO : Implement GetUrlContentAsync
-            throw new NotImplementedException();
+            List<Uri> list = uris.ToList();
+            string[] results = new string[list.Count];
+
+            using (var client = new HttpClient())
+            {
+                ParallelOptions options = new ParallelOptions();
+                options.MaxDegreeOfParallelism = maxConcurrentStreams;
+                Parallel.For(0, list.Count, options,
+                    (i) =>
+                    {
+                        results[i] = client.GetStringAsync(list[i]).Result;
+                    }
+                );
+                return results;
+            }
         }
 
         /// <summary>
@@ -45,10 +66,38 @@ namespace Task
         /// </summary>
         /// <param name="resource">Uri of resource</param>
         /// <returns>MD5 hash</returns>
-        public static Task<string> GetMD5Async(this Uri resource)
+        public static async Task<string> GetMD5Async(this Uri resource)
         {
-            // TODO : Implement GetMD5Async
-            throw new NotImplementedException();
+            Stream data = null;
+            switch (resource.Scheme)
+            {
+                case "http":
+                    using (var client = new HttpClient())
+                    {
+                        client.Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite);
+                        data = await client.GetStreamAsync(resource);
+                    }
+                    break;
+                case "ftp":
+                    var request = (FtpWebRequest)WebRequest.Create(resource);
+                    request.Method = WebRequestMethods.Ftp.DownloadFile;
+                    var response = (FtpWebResponse)await request.GetResponseAsync();
+                    data = response.GetResponseStream();
+                    break;
+                case "file":
+                    data = new FileStream(resource.LocalPath, FileMode.Open);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            MD5 md5Hash = MD5.Create();
+            byte[] hashed = md5Hash.ComputeHash(data);
+            StringBuilder sBuilder = new StringBuilder();
+            for (int i = 0; i < hashed.Length; i++)
+                sBuilder.Append(hashed[i].ToString("x2"));
+            data.Close();
+            return sBuilder.ToString();
         }
     }
 }

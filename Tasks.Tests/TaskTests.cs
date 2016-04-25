@@ -54,15 +54,12 @@ namespace Tasks.Tests
                     GetTestUris().GetUrlContentAsync(expectedConcurrentStreams).ToArray();
 
                     Assert.IsTrue(UnitTestsTraceListener.MaxConcurrentStreamsCount <= expectedConcurrentStreams,
-                                  string.Format("Max concurrent streams should be less then {expectedConcurrentStreams}," +
-                                                " actual : {UnitTestsTraceListener.MaxConcurrentStreamsCount}"));
+                                  string.Format("Max concurrent streams should be less then {0}, actual : {1}", expectedConcurrentStreams, UnitTestsTraceListener.MaxConcurrentStreamsCount));
 
                     Assert.IsTrue(UnitTestsTraceListener.MaxConcurrentStreamsCount > 1,
-                                   string.Format($"Max concurrent streams should be more then 1, " +
-                                                 $"actual : {UnitTestsTraceListener.MaxConcurrentStreamsCount}"));
+                                   string.Format("Max concurrent streams should be more then 1, actual : {0}",UnitTestsTraceListener.MaxConcurrentStreamsCount));
 
-                    Trace.WriteLine(string.Format($"Actual max concurrent requests (max {expectedConcurrentStreams}):" +
-                                                  $" {UnitTestsTraceListener.MaxConcurrentStreamsCount}"));
+                    Trace.WriteLine(string.Format("Actual max concurrent requests (max {0}): {1}",expectedConcurrentStreams,UnitTestsTraceListener.MaxConcurrentStreamsCount));
                 }
                 finally
                 {
@@ -86,6 +83,7 @@ namespace Tasks.Tests
         public void GetUrlMD5_Should_Return_CorrectValue()
         {
             var actual = new Uri(@"ftp://ftp.byfly.by/test/100kb.txt").GetMD5Async().Result;
+            //var actual = new Uri("http://www.msdn.com").GetMD5Async().Result;
             Assert.AreEqual("869c2d2bacc13741416c6303a3a92282", actual, true);
         }
 
@@ -100,7 +98,13 @@ namespace Tasks.Tests
         #region Private Methods 
         private IEnumerable<Uri> GetTestUris()
         {
-            return sites.Select(x => new Uri($@"http://{x}.com"));
+            //return sites.Select(x => new Uri(@"http://{x}.com"));
+            List<Uri> uriCollection = new List<Uri>();
+            foreach(string site in sites)
+            {
+                uriCollection.Add(new Uri(string.Format("http://{0}.com",site)));
+            }
+            return uriCollection.AsEnumerable();
         }
 
         private void TestContent(Func<IEnumerable<Uri>, IEnumerable<string>> func)
@@ -109,7 +113,7 @@ namespace Tasks.Tests
             sw.Start();
             var actual = func(GetTestUris()).ToArray();
             sw.Stop();
-            Trace.WriteLine($"Time : {sw.Elapsed}");
+            Trace.WriteLine(string.Format("Time : {0}",sw.Elapsed));
             Assert.IsTrue(actual
                 .Zip(sites, (content, site) => content.IndexOf(site, StringComparison.InvariantCultureIgnoreCase) > 0)
                 .All(x => x));
